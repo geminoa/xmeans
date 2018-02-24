@@ -223,9 +223,11 @@ class MyCluster
     return [labels, centroids]
   end
 
-  def output_data(centroids, dimension=2)
-    node_file = "node_data_#{dimension}d.tsv"
-    cent_file = "centroid_data_#{dimension}d.tsv"
+  def output_data(centroids, data_dir, dimension=2)
+    `mkdir #{data_dir}/#{dimension}d/`
+
+    node_file = "#{data_dir}/#{dimension}d/node_data.tsv"
+    cent_file = "#{data_dir}/#{dimension}d/centroid_data.tsv"
 
     open(node_file, "w+") {|f|
       @matrix.sizes[1].times do |i|
@@ -291,11 +293,11 @@ if __FILE__ == $0
   mc1 = MyCluster.new(1, data2d)
   mc1.xmeans
   labels, centroids = mc1.kmeans(centroid_num)
-  mc1.output_data(centroids, 2)
+  mc1.output_data(centroids, "data", 2)
 
   # 3次元データのプロット
   data3d = NArray.dfloat(3, 200).random(100)
   mc2 = MyCluster.new(1, data3d)
   labels, centroids = mc2.kmeans(centroid_num)
-  mc2.output_data(centroids, 3)
+  mc2.output_data(centroids, "data", 3)
 end
