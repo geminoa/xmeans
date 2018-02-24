@@ -7,11 +7,6 @@ require "narray"
 class MyCluster
   attr_accessor :cid, :matrix
 
-  def self.gen_random_2d_dfloat(row_num=100, max=100, offset=10)
-    ret = NArray.dfloat(2, row_num.to_i).random(max - 2*offset) + offset
-    return ret
-  end
-
   def initialize(cls_id, mat=nil, narray_flg=nil)
     if mat.class == NArray
       @cid = cls_id
@@ -224,7 +219,7 @@ class MyCluster
   end
 
   def output_data(centroids, data_dir, dimension=2)
-    `mkdir #{data_dir}/#{dimension}d/`
+    `mkdir -p #{data_dir}/#{dimension}d/`
 
     node_file = "#{data_dir}/#{dimension}d/node_data.tsv"
     cent_file = "#{data_dir}/#{dimension}d/centroid_data.tsv"
@@ -275,29 +270,35 @@ class MyCluster
   end
 end
 
-if __FILE__ == $0
+def main(input_file=nil)
   centroid_num = 15
 
   # 2次元データのプロット
-  ary = ""
-  open("data/plot.csv"){|f| ary += f.read}
-  ary = ary.split("\n")
-  ary2 = []
-  ary.each do |a|
-    tmp = a.split(',')
-    ary2 << [tmp[0].to_f, tmp[1].to_f]
-  end
+  #ary = ""
+  #open(input_file){|f| ary += f.read}
+  #ary = ary.split("\n")
+  #ary2 = []
+  #ary.each do |a|
+  #  tmp = a.split(',')
+  #  ary2 << [tmp[0].to_f, tmp[1].to_f]
+  #end
 
-  data2d = NArray.to_na(ary2)
-  #data2d = NArray.dfloat(2, 300).random(100)
-  mc1 = MyCluster.new(1, data2d)
-  mc1.xmeans
+  #data2d = NArray.to_na(ary2)
+  data2d = NArray.dfloat(2, 300).random(100)
+  cluster_id = 1
+  mc1 = MyCluster.new(cluster_id, data2d)
   labels, centroids = mc1.kmeans(centroid_num)
-  mc1.output_data(centroids, "data", 2)
+  mc1.output_data(centroids, "data/kmeans", 2)
+  labels, centroids = mc1.xmeans
+  mc1.output_data(centroids, "data/xmeans", 2)
 
   # 3次元データのプロット
   data3d = NArray.dfloat(3, 200).random(100)
-  mc2 = MyCluster.new(1, data3d)
+  mc2 = MyCluster.new(cluster_id, data3d)
   labels, centroids = mc2.kmeans(centroid_num)
-  mc2.output_data(centroids, "data", 3)
+  mc2.output_data(centroids, "data/kmeans", 3)
+end
+
+if __FILE__ == $0
+  main(ARGV[0])
 end
