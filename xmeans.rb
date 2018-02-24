@@ -11,13 +11,13 @@ class MyCluster
     if mat.class == NArray
       @cid = cls_id
       @matrix = mat
-    else  # 行列を与えない場合は、2次元空間で100個の点をランダムに配置
+    else  # generate 100 points in 2d space if no array given
       @cid = cls_id
       @matrix = NArray.dfloat(2, 100).random(100 - 2*10) + 10 
     end
   end
 
-  # クラスタの重心座標
+  # centriod of the cluster
   def centroid
     cent = []
     @matrix.dim.times do |i|
@@ -26,13 +26,12 @@ class MyCluster
     return NArray.to_na(cent)
   end
 
-  # クラスタの分散
+  # variance of the cluster
   def variance
     cent = centroid()
     return Math.sqrt( ((@matrix - cent)**2).sum) / @matrix.sizes[1]
   end
 
-  # 対数尤度
   def likelihood(cluster_num)
     node_num = @matrix.sizes[1]
     result = -((node_num / 2.0) * Math.log(2.0 * Math::PI)) -
@@ -42,18 +41,17 @@ class MyCluster
     return result
   end
 
-
   def xmeans(div_limit=10)
-    # はじめに2分割して、2つのparent clusterを生成
+    # First, generate two parent clusters
     labels, centroids = kmeans(2)
-    parents = []  # 分割後のノードを格納する配列を用意
+    parents = []  # contains divided nodes
 
     2.times do |i|
       cls_size = labels.eq(i).sum
       parents[i] = NArray.dfloat(@matrix.sizes[0], cls_size)
     end
 
-    # クラスタを配列に格納
+    # add divided clusters into parents array
     2.times do |i|
       cnt = 0
       labels.size.times {|j|
@@ -65,7 +63,7 @@ class MyCluster
       }
     end
 
-    # さらに分割を試みる
+    # try to divide more
     new_centroids = nil
     end_flag = false
     cluster_num = 2
@@ -74,7 +72,7 @@ class MyCluster
       next_parents = []
       new_labels = labels.dup
 
-      parents_loop_cnt = 0  # 分割確定後のラベル更新で用いる
+      parents_loop_cnt = 0  # it's used for updating labels
       bic_flag = false
       parents.each do |parent|
         p_cls = MyCluster.new(parents_loop_cnt - 2, parent)
@@ -88,7 +86,7 @@ class MyCluster
           children[i] = NArray.dfloat(p_cls.matrix.sizes[0], cls_size)
         end
 
-        # クラスタを配列に格納
+        # add clusters to children array
         2.times do |i|
           cnt = 0
           ch_labels.size.times {|j|
@@ -112,7 +110,7 @@ class MyCluster
         puts "p: " + pBIC.to_s
         puts "c: " + cBIC.to_s
 
-        # 分割すべきかを判定
+        # decide if devide or not
         if (cBIC/1 > pBIC)
           #p ch_labels
           cluster_num += 1
@@ -120,13 +118,13 @@ class MyCluster
             next_parents << children[i]
           end
 
-          # ch_centroidsはNArrayなので、一旦配列にする
+          # convert ch_centroids from NArray to arrary
           2.times do |i|
             tmp = ch_centroids[true, i]
             new_centroids << [tmp[0], tmp[1]]
           end
 
-          # labelsの更新
+          # update labels
           label_cnt = 0
           ch_label_cnt = 0
           labels.eq(parents_loop_cnt).each do |flg|
@@ -143,21 +141,22 @@ class MyCluster
           #labels.each{|l| print l}
           #puts "\nparent_num: " + (parents_loop_cnt + 1).to_s + " / " + cluster_num.to_s
           bic_flag = true 
-        else  # BICにより分割しないと判定しなかった場合
+        else  # case of not divide with BIC
           next_parents << parent
           new_centroids << [p_cls.centroid[0], p_cls.centroid[1]]
         end
         parents_loop_cnt += 1
       end  # of parents loop
 
-      # parentを更新
+      # update parents
       parents = next_parents
       labels = new_labels
 
-      # 一度も分割が起こらなかったら終了
+      # terminate if division is occured
       if bic_flag == false
         end_flag = true
-      elsif div_limit < cluster_num  # もしくはクラスタ数が制限を超えたら終了
+      # terminate if the number of clusters reaches to the limit
+      elsif div_limit < cluster_num
         end_flag = true
       end
     end  # of while
@@ -165,11 +164,11 @@ class MyCluster
   end
 
   def kmeans(centroid_num=3)
-    cond = 1e-20  # 終了条件(重心の更新差分がこの値より小さい場合に計算を終了)
+    cond = 1e-20  # condition for termination kmeans
 
-    # @matrixの各点がどのクラスタに所属するかをランダムに割り振り
+    # assign which cluster belongs to for each of points of given matrix
     labels = NArray.int(matrix.sizes[1]).random(centroid_num)
-    # クラスタに必ず1つ以上のノードが割り振られることを保証
+    # confirm that cluster has one or more nodes at least
     centroid_num.times {|i|
       labels[i] = i.to_f if labels[i] != nil
     }
@@ -188,7 +187,7 @@ class MyCluster
           end
         }
         if (labels.eq(cent_num)).sum > 0.0
-          cent = cent / (labels.eq(cent_num)).sum  # 平均をとって重心を算出
+          cent = cent / (labels.eq(cent_num)).sum  # calculate centriod
         end
         @matrix.sizes[0].times {|i|
           centroids[i, cent_num] = cent[i]
@@ -201,16 +200,18 @@ class MyCluster
         next	
       end
 
-      # @matrixの各点について、どの重心に最も近いのかを再計算
-      # labelsの更新
+      # re-calculation for each point of matrix
       labels = update_labels(labels, centroids)
 
-      # 終了判定
       centroids.sizes[1].times {|i|
-        if cond < Math.sqrt( ( (prev_centroids[true, i] - centroids[true, i])**2 ).sum )
+      # terminate if difference between centroids and all of prev_centroids
+      # is less than cond
+        if cond < Math.sqrt(
+            ((prev_centroids[true, i] - centroids[true, i])**2).sum
+        )
           next	
         end
-        end_flag = true  # 全てのprev_centroidsとcentroidsの差がcond以内なら終了
+        end_flag = true
       }
 
       prev_centroids = centroids.dup
@@ -249,11 +250,11 @@ class MyCluster
   def update_labels(labels, centroids)
     labels.size.times {|cnt|	
       min_dist = nil
-      label = nil  # 更新されたlabelを代入
+      label = nil
 
       point = @matrix[true, cnt]
       centroids.sizes[1].times {|i|
-        dist = ( (point - centroids[true, i])**2 ).sum  # 距離を計算
+        dist = ( (point - centroids[true, i])**2 ).sum
         if min_dist
           if (min_dist > dist)
             min_dist = dist 
@@ -273,7 +274,7 @@ end
 def main(input_file=nil)
   centroid_num = 15
 
-  # 2次元データのプロット
+  # plot 2d data
   #ary = ""
   #open(input_file){|f| ary += f.read}
   #ary = ary.split("\n")
@@ -292,7 +293,7 @@ def main(input_file=nil)
   labels, centroids = mc1.xmeans
   mc1.output_data(centroids, "data/xmeans", 2)
 
-  # 3次元データのプロット
+  # plot 3d data
   data3d = NArray.dfloat(3, 200).random(100)
   mc2 = MyCluster.new(cluster_id, data3d)
   labels, centroids = mc2.kmeans(centroid_num)
